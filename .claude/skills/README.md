@@ -7,6 +7,7 @@ Skills are self-contained CLI tools that agents (and humans) use to interact wit
 | Skill | Path | Description |
 |-------|------|-------------|
 | `azure-devops` | `azure-devops/` | Full Azure DevOps REST API — work items, repos, PRs, pipelines, wiki, test plans, security, variable groups, environments, policies. 13 domains, 99 tools. |
+| `dw-extend` | `dw-extend/` | Knowledge base for building Dynamicweb and Swift extensions — NotificationSubscribers, Providers, ScheduledTasks, UpdateProviders, database queries, CSS customization, Razor overrides, custom ItemTypes. |
 
 ## Using a Skill
 
