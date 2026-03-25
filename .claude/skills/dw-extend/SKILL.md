@@ -29,6 +29,7 @@ Determine which extension type(s) are needed. A request may require more than on
 | Add custom data to a Razor template context | ViewModel extension |
 | Add custom UI, screens, or buttons in the Dynamicweb admin | Administration UI extension |
 | Create custom database tables or migrate schema | UpdateProvider + Database query |
+| Add search, product listing, or faceted filtering | Repository (index + query + facets) |
 
 ---
 
@@ -1041,7 +1042,349 @@ The template inherits from `ViewModelTemplate<ParagraphViewModel>`. Access field
 
 ---
 
-## Step 5 — Output format
+## Step 5 — Repositories (Search indexes, queries & facets)
+
+Repositories live in `Files/System/Repositories/<RepositoryName>/` and contain four file types that form a pipeline: `.index` → `.query` → `.facets`. A `.task` file (deprecated — prefer a Scheduled Task AddIn) triggers scheduled rebuilds.
+
+**Managed in admin at:** Settings → System → Repositories
+
+---
+
+### `.index` — Index definition
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Index Type="Dynamicweb.Indexing.Index, Dynamicweb.Core" Name="Products.index">
+  <Settings />
+  <Instances Balancer="Dynamicweb.Indexing.Balancing.LastUpdated">
+    <Instance Name="Products"           Type="Dynamicweb.Indexing.Lucene.LuceneIndexProvider, Dynamicweb.Indexing.Lucene" />
+    <Instance Name="Products secondary" Type="Dynamicweb.Indexing.Lucene.LuceneIndexProvider, Dynamicweb.Indexing.Lucene" />
+  </Instances>
+  <Builds Type="Dynamicweb.Ecommerce.Indexing.ProductIndexBuilder, Dynamicweb.Ecommerce">
+    <Build Name="Full" Action="Full">
+      <Setting Name="SkipPrices">True</Setting>
+      <Setting Name="SkipImages">True</Setting>
+      <Setting Name="BulkSize">500</Setting>
+      <Setting Name="OnlyIndexActiveProducts">False</Setting>
+      <Setting Name="HoursToUpdate">24</Setting>
+      <Setting Name="HandleInheritedCategoryValues">True</Setting>
+      <Setting Name="EmptyStringReplacement"></Setting>
+      <Notification SenderName="" SenderEmail="" Subject="" Template="" SendLog="false" NotificationType="Never" />
+    </Build>
+    <Build Name="Partial" Action="Update">
+      <Setting Name="HoursToUpdate">2</Setting>
+      <!-- same settings as Full -->
+    </Build>
+  </Builds>
+  <Schema>
+    <Fields>
+      <!-- Schema extender — adds all default fields for this index type -->
+      <Extension Type="Dynamicweb.Ecommerce.Indexing.ProductIndexSchemaExtender, Dynamicweb.Ecommerce"
+                 Stored="false" Analyzed="false" Indexed="false" Facetable="false" />
+
+      <!-- Simple field — maps one source field to one index field -->
+      <Field Source="ProductCategory|brand_information|Brand_name"
+             Name="Brand_Facet" SystemName="Brand_Facet"
+             Type="System.String" Stored="true" Analyzed="false" Indexed="true" Facetable="false" />
+
+      <!-- Analyzed field for search (not for facets) -->
+      <Field Source="ProductName" Name="ProductName_Search" SystemName="ProductName_Search"
+             Type="System.String" Boost="5" Stored="false" Analyzed="true" Indexed="true" Facetable="false" />
+
+      <!-- Copy/Summary field — aggregates multiple sources into one searchable field -->
+      <Copy Sources="Name,Number,LongDescription,ShortDescription,ManufacturerName"
+            Name="Free text search" SystemName="freetext"
+            Type="System.String" Stored="false" Analyzed="true" Indexed="true" Facetable="false" />
+
+      <!-- Grouping field — buckets a numeric source into named ranges -->
+      <Grouping Source="ProductPrice" Name="Price Range" SystemName="PriceRange"
+                Type="System.String" Stored="true" Analyzed="false" Indexed="true" Facetable="false">
+        <Group Name="1 - 200"    From="0"    To="200" />
+        <Group Name="200 - 500"  From="200"  To="500" />
+        <Group Name="500 - 1000" From="500"  To="1000" />
+        <Group Name="1000 +"     From="1000" To="100000" />
+      </Grouping>
+
+      <!-- Sort field — un-analyzed copy of a field needed for sorting -->
+      <Field Source="ProductName" Name="NameForSort" SystemName="NameForSort"
+             Type="System.String" Stored="true" Analyzed="false" Indexed="true" Facetable="false" />
+    </Fields>
+    <FieldTypes />
+  </Schema>
+  <Meta />
+</Index>
+```
+
+#### Field attributes
+
+| Attribute | Purpose |
+|---|---|
+| `Stored="true"` | Value is kept in the index and can be retrieved |
+| `Indexed="true"` | Field is searchable / filterable |
+| `Analyzed="true"` | Value is tokenized (lowercased, split on spaces) — good for full-text, bad for facets |
+| `Facetable="false"` | Rarely needed; facetability is controlled in the `.facets` file |
+| `Boost="5"` | Multiplies relevance score for this field in full-text searches |
+
+**Key rules:**
+- Facet fields must be `Analyzed="false"` — tokenizing destroys the values and breaks facet counts
+- For sorting, create a separate un-analyzed `<Field>` alongside any analyzed search field
+- `EmptyStringReplacement` — Lucene does not index null or empty strings; set a dummy value if you need to match "no value" in a query
+- Always create two `<Instance>` elements — the `LastUpdated` balancer serves queries from the freshest one, so rebuilds never take the index offline
+
+#### Build `Type` by index category
+
+| Index type | `Builds Type` |
+|---|---|
+| Products | `Dynamicweb.Ecommerce.Indexing.ProductIndexBuilder, Dynamicweb.Ecommerce` |
+| Content | `Dynamicweb.Content.ContentIndexBuilder, Dynamicweb` |
+| Users | `Dynamicweb.UserManagement.Indexing.UserIndexBuilder, Dynamicweb.UserManagement` |
+| Files | _(FileIndexBuilder)_ |
+| SQL | _(custom SqlIndexBuilder)_ |
+
+#### Build `Action` values
+
+| Action | Behaviour |
+|---|---|
+| `Full` | Rebuilds entire index from scratch |
+| `Update` | Rebuilds products modified within `HoursToUpdate` |
+| `UpdateWithIds` | System-triggered batch during product saves in PIM |
+
+#### Product index — fields auto-generated by `ProductIndexSchemaExtender`
+
+| Category | Field names |
+|---|---|
+| Identity | `ID`, `VariantID`, `ProductKey`, `AutoID` |
+| Names | `Name`, `Number`, `ShortDescription`, `LongDescription`, `ManufacturerName` |
+| Navigation | `GroupIDs`, `GroupNames`, `ParentGroupIDs`, `ShopIDs`, `PrimaryGroupSort` |
+| Status | `Active`, `LanguageID` |
+| Commerce | `ProductPrice`, `BoughtWithProducts`, `OrderCount`, `AssortmentIDs`, `CampaignStartTime`, `CampaignEndTime` |
+| Stock | `StockLocationProductAvailable` |
+| Variants | `IsVariant`, `VariantGroup_VARGRP1`, `VariantGroup_VARGRP2`, … |
+| Relations | `ProductRelationGroup_RELGRP1`, `ProductRelationGroup_RELGRP2`, … |
+| Category fields | `ProductCategory\|CategorySystemName\|FieldSystemName` |
+| Media | `DetailImages`, `ImagePatternImages`, `Images` |
+
+---
+
+### `.query` — Query definition
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Query ID="3d8be144-b239-4d10-91c1-e19e0d6e6032" Name="Products.query">
+  <Meta />
+  <Settings />
+
+  <!-- Parameters — optional filters; expressions are skipped when value is empty -->
+  <Parameters>
+    <Parameter Name="q"        Type="System.String" />
+    <Parameter Name="GroupID"  Type="System.String[]"  DefaultValue="" />
+    <Parameter Name="IsVariant" Type="System.Boolean[]" DefaultValue="" />
+    <Parameter Name="Brand"    Type="System.String[]" />
+    <Parameter Name="PriceRange" Type="System.String[]" DefaultValue="" />
+  </Parameters>
+
+  <!-- Source — points to the index this query runs against -->
+  <Source Repository="ProductsFrontend" Item="Products.index"
+          Type="Dynamicweb.Indexing.Queries.IndexQueryProvider, Dynamicweb.Core" />
+
+  <SortOrder>
+    <Sort Field="_score" Direction="Descending" />
+  </SortOrder>
+
+  <Expressions>
+    <!-- AND-group: all children must match -->
+    <GroupExpression Operator="And">
+
+      <!-- Hard filter: always active products only -->
+      <BinaryExpression Operator="Equal" Disabled="false">
+        <Left><FieldExpression Field="Active" /></Left>
+        <Right><ConstantExpression Value="True" Type="System.Boolean" /></Right>
+      </BinaryExpression>
+
+      <!-- Macro: auto-filter to current language -->
+      <BinaryExpression Operator="Equal" Disabled="false">
+        <Left><FieldExpression Field="LanguageID" /></Left>
+        <Right><MacroExpression Lookup="Dynamicweb.Ecommerce.Context:LanguageID" /></Right>
+      </BinaryExpression>
+
+      <!-- Macro: auto-filter to current shop -->
+      <BinaryExpression Operator="MatchAny" Disabled="false">
+        <Left><FieldExpression Field="ShopIDs" /></Left>
+        <Right><MacroExpression Lookup="Dynamicweb.Ecommerce.Context:ShopID" /></Right>
+      </BinaryExpression>
+
+      <!-- Parameter: optional group filter — skipped when GroupID is empty -->
+      <BinaryExpression Operator="MatchAny" Disabled="false">
+        <Left><FieldExpression Field="ParentGroupIDs" /></Left>
+        <Right><ParameterExpression Name="GroupID" /></Right>
+      </BinaryExpression>
+
+      <!-- OR-group: free-text search across multiple fields -->
+      <GroupExpression Operator="Or">
+        <BinaryExpression Operator="Equal" Disabled="false">
+          <Left><FieldExpression Field="ProductName_Search" /></Left>
+          <Right><ParameterExpression Name="q" /></Right>
+        </BinaryExpression>
+        <BinaryExpression Operator="Contains" Disabled="false">
+          <Left><FieldExpression Field="freetext" /></Left>
+          <Right><ParameterExpression Name="q" /></Right>
+        </BinaryExpression>
+      </GroupExpression>
+
+      <!-- Facet filter: Brand — skipped when Brand param is empty -->
+      <BinaryExpression Operator="In" Disabled="false">
+        <Left><FieldExpression Field="Brand_Facet" /></Left>
+        <Right><ParameterExpression Name="Brand" /></Right>
+      </BinaryExpression>
+
+    </GroupExpression>
+  </Expressions>
+
+  <ViewFields />
+  <ViewLanguages />
+  <Meta />
+  <CompletionRules />
+  <CompletionLanguages />
+  <ListViewFields />
+</Query>
+```
+
+#### Parameters
+
+| Type | Usage |
+|---|---|
+| `System.String` | Single value (search term, ID) |
+| `System.String[]` | Multiple values — all facet filters use this |
+| `System.Boolean[]` | Multiple booleans (e.g. `IsVariant`) |
+| `System.Int32` | Single integer |
+| `System.DateTime` | Single date |
+
+- `DefaultValue=""` — expression is skipped when no value is passed (the standard pattern for optional filters)
+- Omitting `DefaultValue` — expression only fires when the caller explicitly provides a value
+
+#### Expression operators
+
+| Operator | Behaviour |
+|---|---|
+| `Equal` | Exact match; if test value is an array, acts like MatchAll |
+| `MatchAny` | Field contains **any** of the test values |
+| `MatchAll` | Field contains **all** of the test values |
+| `In` | Array-only MatchAny — standard operator for `System.String[]` facet parameters |
+| `Contains` | Partial match from the **beginning** of the value |
+| `ContainsExtended` | Partial match **anywhere** — high overhead, use sparingly |
+| `IsEmpty` | Field is empty or unset |
+
+#### Right-hand side expression types
+
+| XML element | Usage |
+|---|---|
+| `<ParameterExpression Name="...">` | Value comes from a query parameter (URL / facet) |
+| `<MacroExpression Lookup="...">` | Dynamic context value — language, shop, user, assortments |
+| `<ConstantExpression Value="..." Type="...">` | Hardcoded value |
+| `<TermExpression Value="..." Type="...">` | An existing known field value |
+
+**Common macros:**
+
+| Macro | Returns |
+|---|---|
+| `Dynamicweb.Ecommerce.Context:LanguageID` | Current language ID |
+| `Dynamicweb.Ecommerce.Context:ShopID` | Current shop ID |
+| `Dynamicweb.Ecommerce.Context:AssortmentIDs` | Current user's assortment IDs |
+| `Dynamicweb.Frontend.PageView.Context:WebsiteID` | Current website/area ID |
+| `Dynamicweb.UserManagement.Context:FavoritesAutoIdByUserId` | Current user's favorited product AutoIDs |
+
+#### Sorting
+
+- `Direction`: `Ascending` or `Descending`
+- `Field`: any index field — **must be `Analyzed="false"`** to sort correctly
+- `_score` is the Lucene relevance score field (default for search results)
+
+---
+
+### `.facets` — Facet definition
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Facets Name="Products.facets">
+  <Settings />
+  <!-- Source — points to the query (not the index directly) -->
+  <Source Repository="ProductsFrontend" Item="Products.query" />
+  <Meta />
+
+  <!-- Field facet: one option per unique value in the index field -->
+  <Facet Name="Brand" Type="Field" Field="Brand_Facet" QueryParameter="Brand">
+    <RenderType Name="Checkboxes" SystemName="Checkboxes" />
+    <Visibility Status="AlwaysVisible" QueryParameter="" Condition="HasValue" MatchValue="" />
+  </Facet>
+
+  <!-- Colors render type -->
+  <Facet Name="Color" Type="Field" Field="VariantGroup_VARGRP1" QueryParameter="Color">
+    <RenderType Name="Colors" SystemName="Colors" />
+    <Visibility Status="AlwaysVisible" QueryParameter="" Condition="HasValue" MatchValue="" />
+  </Facet>
+
+  <!-- Conditional visibility: only show when another parameter has a specific value -->
+  <Facet Name="Gear model" Type="Field" Field="GearModel_facet" QueryParameter="Gear_Model">
+    <RenderType Name="Checkboxes" SystemName="Checkboxes" />
+    <Visibility Status="Conditionally" QueryParameter="Bike type" Condition="HasSpecificValue" MatchValue="Mountain" />
+  </Facet>
+</Facets>
+```
+
+#### Facet `Type` values
+
+| Type | Behaviour |
+|---|---|
+| `Field` | One option per unique value in the index field — standard |
+| `List` | Groups values under custom labels (e.g. "Spring Colors" containing several values) |
+| `Term` | Auto-generates from the 2048 most frequent values — for high-cardinality fields like tags |
+
+#### `RenderType` options (defined in `FacetRenderOptions.xml`)
+
+`Checkboxes`, `Colors`, `Range`, `Select`, `Tags`, `Icons`, `Images`, `Links`, `Number`
+
+#### `Visibility` settings
+
+| Status | Behaviour |
+|---|---|
+| `AlwaysVisible` | Always shown |
+| `Conditionally` | Shown only when `QueryParameter` satisfies `Condition` |
+
+`Condition` values: `HasValue` (any value selected), `HasSpecificValue` (matches `MatchValue`)
+
+#### Facet → query → index wiring rules
+
+1. The facet `Field` must exist in the index schema as `Analyzed="false" Indexed="true"`
+2. The facet `QueryParameter` must match a `<Parameter Name="..." Type="System.String[]">` in the query
+3. That parameter must be used with operator `In` in a `BinaryExpression`
+4. URL values with commas, slashes, or spaces must be wrapped in brackets: `&Color=[Red/Orange]&Color=[Blue, Navy]`
+
+---
+
+### Tasks (deprecated — use Scheduled Task AddIn instead)
+
+`.task` files trigger index builds but are officially deprecated. Timing is imprecise (handler runs every 5 minutes).
+
+**Recommended approach:** Use a standard **Scheduled Task** with the `Repository build index AddIn` — supports selecting the index and build type (Full/Partial) with reliable scheduling.
+
+Legacy `.task` file format for reference:
+
+```xml
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Task Type="Dynamicweb.Indexing.Tasks.IndexBuilderTaskProvider, Dynamicweb.Core"
+      Start="1992-12-31 07:00:00" End="2999-12-31 23:59:59" Repeat="1440">
+  <Parameters>
+    <Index>Products.index</Index>
+    <Build>Full</Build>
+  </Parameters>
+</Task>
+```
+
+`Repeat` is in minutes (1440 = daily).
+
+---
+
+## Step 6 — Output format
 
 When generating code, always:
 
@@ -1062,3 +1405,8 @@ When generating code, always:
 - Dynamicweb extensibility overview: https://doc.dynamicweb.dev/documentation/extending/index.html
 - Dynamicweb providers: https://doc.dynamicweb.dev/documentation/extending/providers.html
 - Dynamicweb API reference: https://doc.dynamicweb.dev/api/
+- Repositories (manual): https://doc.dynamicweb.dev/manual/dynamicweb10/settings/system/repositories/index.html
+- Indexes (implementing): https://doc.dynamicweb.dev/documentation/implementing/repositories/indexes/index.html
+- Queries (implementing): https://doc.dynamicweb.dev/documentation/implementing/repositories/queries/index.html
+- Facets (implementing): https://doc.dynamicweb.dev/documentation/implementing/repositories/facets/index.html
+- Product indexes: https://doc.dynamicweb.dev/documentation/implementing/repositories/indexes/productindexes.html
