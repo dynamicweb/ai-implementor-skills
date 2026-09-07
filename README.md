@@ -87,9 +87,18 @@ claude plugin install dw-cli@dynamicweb
 each other; they cross-reference in prose (`dw-admin-ui` points at `dw-cli` for deployment), and an absent
 skill just means that pointer goes unused.
 
-`--scope` decides who gets it: `user` (default, all your projects), `project` (written to the repo's
-`.claude/settings.json`, so everyone who opens that repo gets the skill), or `local` (just you, just this
-repo).
+`--scope` records where the choice is stored: `user` (default, all your projects), `project` (the repo's
+`.claude/settings.json`, committed) or `local` (just you, just this repo).
+
+Project scope does **not** save your colleagues the setup. Both steps above are per-machine: a marketplace
+declared in a repo's `settings.json` is ignored, and an `enabledPlugins` entry does nothing until the
+plugin is actually installed. What project scope buys you is a committed record of which skills the repo
+expects — everyone still runs `marketplace add` and `install` once.
+
+> ⚠️ `claude plugin marketplace remove <name>` cascades further than it looks. It strips the marketplace
+> **and** every `<plugin>@<name>` entry from `enabledPlugins`, in user *and* project settings — so it can
+> quietly edit a committed `settings.json`. Check `git diff` afterwards. Re-adding the marketplace does not
+> restore the entries; you have to install again.
 
 **Or point Claude Code at the repo in plain language.** It is public, so you can say:
 
