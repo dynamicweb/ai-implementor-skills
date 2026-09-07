@@ -12,6 +12,8 @@ import argparse
 import base64
 import json
 import keyring
+import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -229,6 +231,34 @@ def get_auth_header():
         pat = config.get("pat", "")
         creds = base64.b64encode(f":{pat}".encode()).decode()
         return f"Basic {creds}"
+
+    elif auth_type == "azcli":
+        # Borrow the Azure CLI's own session. Its tokens are short-lived, so ask for
+        # one per call rather than storing it. Resolve the executable with which():
+        # on Windows az is a .cmd, which CreateProcess will not run from a bare name,
+        # and passing shell=True instead would hand the arguments to the shell.
+        az = shutil.which("az")
+        if not az:
+            print("auth_type is azcli but the az CLI is not on PATH.", file=sys.stderr)
+            return None
+        try:
+            result = subprocess.run(
+                [az, "account", "get-access-token",
+                 "--resource", AZURE_DEVOPS_RESOURCE,
+                 "--query", "accessToken", "-o", "tsv"],
+                capture_output=True, text=True, timeout=120,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            print(f"Could not run az: {exc}", file=sys.stderr)
+            return None
+        if result.returncode != 0:
+            detail = result.stderr.strip().splitlines()
+            print("az could not issue an Azure DevOps token. Run: az login", file=sys.stderr)
+            if detail:
+                print(f"  az said: {detail[-1]}", file=sys.stderr)
+            return None
+        token = result.stdout.strip()
+        return f"Bearer {token}" if token else None
 
     return None
 
