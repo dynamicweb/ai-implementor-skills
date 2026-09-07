@@ -1,0 +1,30 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "dynamicweb",
+  "description": "Skills for implementing on Dynamicweb 10 — deploying add-ins, building extensions, extending the administration interface, and the surrounding Azure DevOps workflow",
+  "owner": {
+    "name": "Dynamicweb"
+  },
+  "plugins": [
+    {
+      "name": "dw-cli",
+      "source": "./plugins/dw-cli",
+      "category": "deployment"
+    },
+    {
+      "name": "dw-extend",
+      "source": "./plugins/dw-extend",
+      "category": "development"
+    },
+    {
+      "name": "dw-admin-ui",
+      "source": "./plugins/dw-admin-ui",
+      "category": "development"
+    },
+    {
+      "name": "azure-devops",
+      "source": "./plugins/azure-devops",
+      "category": "development"
+    }
+  ]
+}

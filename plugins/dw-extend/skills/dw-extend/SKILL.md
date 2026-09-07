@@ -27,7 +27,7 @@ Determine which extension type(s) are needed. A request may require more than on
 | Run logic on a schedule or via the admin task runner | ScheduledTask AddIn |
 | Change or add frontend presentation without touching Swift source | Swift CSS or Razor override |
 | Add custom data to a Razor template context | ViewModel extension |
-| Add custom UI, screens, or buttons in the Dynamicweb admin | Administration UI extension |
+| Add custom UI, screens, or buttons in the Dynamicweb admin | Administration UI extension — **use the `dw-admin-ui` skill**, not this one |
 | Create custom database tables or migrate schema | UpdateProvider + Database query |
 | Add search, product listing, or faceted filtering | Repository (index + query + facets) |
 
@@ -47,6 +47,18 @@ Extensions live in a **separate C# class library** that references Dynamicweb Nu
 </ItemGroup>
 ```
 
+> **Never build against a newer version than the solution runs — the add-in will fail to load, silently.**
+> Verified by A/B test on a live solution with identical source: built against `Dynamicweb` 10.28.9
+> (stable) the add-in loaded and its types appeared in the admin; rebuilt against
+> `Dynamicweb.Suite 10.29.2-PreRelease` the very same code stopped loading and its types vanished. In
+> **both** cases `dw install` reported `ok: true`, `status: 200`, "App(s) successfully installed" and exit
+> 0 — there is no error anywhere to tell you.
+>
+> `Version="10.*"` resolves to the latest *stable* and excludes prereleases, which is why it is the safer
+> default. Do not "helpfully" switch it to `10.*-*` or pin a prerelease unless the target solution really
+> runs that build. After deploying, always confirm the add-in actually appears where it should — a
+> successful install proves nothing about loading.
+
 ---
 
 ### NotificationSubscriber
@@ -60,12 +72,12 @@ Use when you need to hook into a platform event and run code alongside (not inst
 ```csharp
 using Dynamicweb.Extensibility.Notifications;
 
-[Subscribe(Dynamicweb.Ecommerce.Notifications.Ecommerce.Order.Placed)]
+[Subscribe(Dynamicweb.Ecommerce.Notifications.Ecommerce.Cart.CheckoutDoneOrderIsComplete)]
 public class OrderPlacedSubscriber : NotificationSubscriber
 {
     public override void OnNotify(string notification, NotificationArgs args)
     {
-        if (args is not Dynamicweb.Ecommerce.Notifications.Ecommerce.Order.PlacedArgs placedArgs)
+        if (args is not Dynamicweb.Ecommerce.Notifications.Ecommerce.Cart.CheckoutDoneOrderIsCompleteArgs placedArgs)
             return;
 
         var order = placedArgs.Order;
@@ -99,7 +111,7 @@ using Dynamicweb.Ecommerce.Prices;
 [AddInLabel("My Custom Price Provider")]
 public class CustomPriceProvider : PriceProvider
 {
-    public override PriceRaw FindPrice(PriceContext context)
+    public override PriceRaw FindPrice(PriceContext context, PriceProductSelection selection)
     {
         // return null to fall through to next provider
         // return a PriceRaw to use this price
@@ -134,12 +146,15 @@ public class CustomPriceProvider : PriceProvider
 
 Use when you need logic to run on a timer or to appear in the Dynamicweb Scheduled Tasks admin.
 
-**Base class:** `Dynamicweb.Extensibility.AddIns.BaseScheduledTaskAddIn`
-**Attributes:** `[AddInName]`, `[AddInLabel]`, `[AddInDescription]`
+**Base class:** `Dynamicweb.Scheduling.BaseScheduledTaskAddIn`
+**Attributes:** `[AddInName]`, `[AddInLabel]`, `[AddInDescription]` (these live in `Dynamicweb.Extensibility.AddIns`, the base class does **not** — you need both usings)
 **Method:** override `Run()` — return `true` on success, `false` on failure
 
 ```csharp
-using Dynamicweb.Extensibility.AddIns;
+using System;
+using Dynamicweb.Extensibility.AddIns;   // attributes
+using Dynamicweb.Extensibility.Editors;  // IntegerNumberParameterEditor
+using Dynamicweb.Scheduling;             // BaseScheduledTaskAddIn
 
 [AddInName("MyCompany.DataSyncTask")]
 [AddInLabel("Data Sync Task")]
@@ -155,13 +170,13 @@ public class DataSyncTask : BaseScheduledTaskAddIn
         try
         {
             // your logic here
-            Dynamicweb.Logging.LogManager.System.GetLogger(typeof(DataSyncTask))
+            Dynamicweb.Logging.LogManager.System.GetLogger("MyCompany.DataSyncTask")
                 .Info($"DataSyncTask completed. BatchSize={BatchSize}");
             return true;
         }
         catch (Exception ex)
         {
-            Dynamicweb.Logging.LogManager.System.GetLogger(typeof(DataSyncTask))
+            Dynamicweb.Logging.LogManager.System.GetLogger("MyCompany.DataSyncTask")
                 .Error("DataSyncTask failed", ex);
             return false;
         }
@@ -174,6 +189,7 @@ public class DataSyncTask : BaseScheduledTaskAddIn
 - Expose configuration via `[AddInParameter]` + `[AddInParameterEditor]` properties
 - The task appears in admin after the DLL is deployed — the admin user creates a schedule for it
 - Return `false` (not throw) to signal failure — this allows the scheduler to record it properly
+- `GetLogger` takes a **string**, not a `Type`. There is no `Type` overload, so `GetLogger(typeof(MyTask))` does not compile (`CS1503`)
 
 ---
 
@@ -184,43 +200,56 @@ When you need data that is not available on a ViewModel or in a `NotificationArg
 **Pattern:** call the static service accessor, then call methods on the returned service instance.
 
 ```csharp
-// Content
+// Content — Dynamicweb.Content.Services
 using Dynamicweb.Content;
 
-var page = Services.Pages.GetPage(pageId);
-var area = Services.Areas.GetArea(areaId);
-var paragraphs = Services.Paragraphs.GetParagraphsByPageId(pageId);
-var items = Services.Items.GetItemsByItemType("MyItemType");
+var page       = Services.Pages.GetPage(pageId);                        // int
+var area       = Services.Areas.GetArea(areaId);                        // int
+var paragraphs = Services.Paragraphs.GetParagraphsByPageId(pageId);     // int
+var item       = Services.Items.GetItem(itemType, itemId);              // string, string
 
-// Ecommerce
+// Ecommerce — Dynamicweb.Ecommerce.Services
 using Dynamicweb.Ecommerce;
 
-var product = Services.Products.GetProduct(productId, variantId, languageId);
-var order = Services.Orders.GetOrder(orderId);
-var orders = Services.Orders.GetOrdersByCustomerId(customerId);
-var cart = Services.Carts.GetCart(cartId);
-var currency = Services.Currencies.GetCurrency(currencyCode);
-var discount = Services.Discounts.GetDiscount(discountId);
+var product  = Services.Products.GetProductById(productId, variantId, languageId);  // string x3
+var order    = Services.Orders.GetById(orderId);                        // string
+var currency = Services.Currencies.GetCurrency(currencyCode);           // string
+var discount = Services.Discounts.GetDiscount(discountId);              // int
+var cartId   = Services.Carts.GetActiveCartId(userId);                  // int -> cart id
 
-// Users
+// Users — Dynamicweb.Security.UserManagement.UserManagementServices
 using Dynamicweb.Security.UserManagement;
 
-var user = UserManagementServices.Users.GetUserById(userId);
-var group = UserManagementServices.UserGroups.GetGroupById(groupId);
-var addresses = UserManagementServices.UserAddresses.GetUserAddresses(userId);
+var user      = UserManagementServices.Users.GetUserById(userId);                 // int
+var group     = UserManagementServices.UserGroups.GetGroupById(groupId);          // int
+var addresses = UserManagementServices.UserAddresses.GetAddressesByUserId(userId);// int
 
-// Forms
+// Forms — Dynamicweb.Forms.FormsServices
 using Dynamicweb.Forms;
 
-var form = FormsServices.Forms.GetFormById(formId);
-var submits = FormsServices.Submits.GetSubmitsByFormId(formId);
+var form    = FormsServices.Forms.GetById(formId);        // int
+var submits = FormsServices.Submits.GetSubmits(formId);   // int
 
-// Email Marketing
-using Dynamicweb.EmailMarketing;
+// Email marketing flows — NO static accessor; instantiate the service
+using Dynamicweb.EmailMarketing.Flows;
 
-var flow = Services.Flows.GetFlowById(flowId);
-var recipients = Services.FlowRecipients.GetRecipientsByFlowId(flowId);
+var flow       = new FlowService().GetFlow(flowId);                        // int
+var recipients = new FlowRecipientService().GetRecipientsByFlowId(flowId);  // int
 ```
+
+Every call above is compile-verified against 10.29. Three traps worth knowing:
+
+- **`Services.Items` cannot list items by type.** `ItemService` exposes only `GetItem(itemType, itemId)`,
+  `GetItemById(id)` and `GetItemByPageId(pageId, ...)`. There is no "all items of type X" method — use a
+  repository/index query for that.
+- **`Services.Carts` is not a cart loader.** It is `Frontend.Cart.CartService` and exposes only
+  `GetActiveCartId(...)`. Load the cart itself with `Services.Orders.GetById(cartId)` — carts are orders.
+- **Flows have no `Services.` accessor at all.** `Services.Flows` and `Services.FlowRecipients` do not
+  exist; construct `FlowService` / `FlowRecipientService` directly.
+
+For a customer's orders use `Services.Orders.GetCustomerOrdersByType(...)`, which takes a long parameter
+list (`int, string, OrderType, int, bool, string, DateTime, ...`) — check the overloads rather than
+guessing.
 
 **Available service entry points:**
 
@@ -246,9 +275,15 @@ var recipients = Services.FlowRecipients.GetRecipientsByFlowId(flowId);
 
 Use when a Razor template needs data that is not in the standard ViewModel.
 
+`ProductViewModel` exists in **two** namespaces — `Dynamicweb.Ecommerce.ProductCatalog.ProductViewModel`
+(used below, carries `StockLevel`) and `Dynamicweb.Ecommerce.Frontend.ProductViewModel`. Import the wrong
+one and the members will not resolve.
+
 **Option A — Extension method** (for computed/derived values, no serialization needed):
 
 ```csharp
+using Dynamicweb.Ecommerce.ProductCatalog;
+
 public static class ProductViewModelExtensions
 {
     public static string FormattedStockLabel(this ProductViewModel model)
@@ -261,6 +296,9 @@ Usage in template: `@Model.FormattedStockLabel()`
 **Option B — Subclass** (for extra properties, JSON serialization, constructor injection):
 
 ```csharp
+using Dynamicweb.Ecommerce.ProductCatalog;
+using Dynamicweb.Extensibility.AddIns;
+
 [AddInName("MyProductViewModel")] // use ItemType SystemName if item-specific
 public class MyProductViewModel : ProductViewModel
 {
@@ -294,10 +332,13 @@ public sealed class MyExtensionUpdateProvider : UpdateProvider
             id: "A1B2C3D4-E5F6-7890-ABCD-EF1234567890",
             provider: this,
             tableName: "MyExtension_Product",
+            // The parentheses are REQUIRED - AddTable does not add them. See the warning below.
             tableDefinition: """
-                MyExtension_ProductId INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
-                MyExtension_ProductExternalId NVARCHAR(255) NOT NULL,
-                MyExtension_ProductCreated DATETIME NOT NULL DEFAULT GETDATE()
+                (
+                    MyExtension_ProductId INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+                    MyExtension_ProductExternalId NVARCHAR(255) NOT NULL,
+                    MyExtension_ProductCreated DATETIME NOT NULL DEFAULT GETDATE()
+                )
                 """
         ),
 
@@ -358,16 +399,47 @@ public sealed class MyExtensionUpdateProvider : UpdateProvider
 
 ---
 
+**`AddTable` requires you to supply the parentheses.** This is the single most likely reason a new
+table never appears. `SqlUpdate.AddTable` builds its SQL as:
+
+```text
+IF NOT EXISTS (...) BEGIN CREATE TABLE {tableName} {tableDefinition} END
+```
+
+It interpolates `tableDefinition` raw, so a definition without `( ... )` produces
+`CREATE TABLE MyTable Col1 INT ...` and fails with `Incorrect syntax near 'Col1'` (SQL error 102).
+`AddColumn` behaves differently — it wraps the column name itself — so the two are not symmetric.
+
+**How updates are tracked.** Each applied update becomes a row in `Updates` (`UpdateId`,
+`UpdateProviderName`, `UpdateTime`), and `UpdateManager` skips any update already listed. Two
+consequences:
+
+- **To re-run an update, delete its row from `Updates`** (or change the update's `id`).
+- **A failed update writes no row.** `UpdateManager.ExecuteUpdatesCore` catches each exception, logs it,
+  and moves on — so a broken update is invisible unless you read the log. It will also be retried on
+  every subsequent run, since nothing was recorded.
+
+**When updates run.** `UpdateManager.ExecuteUpdates()` is called from
+`Host.Core/Middleware/InitializersMiddleware` on the first request after application start (once per app
+lifetime, so once per recycle), and `AddinProvider.LoadDlls` calls `ExecuteUpdates(providers)` for an
+add-in as it is loaded. A **non-queued** `dw install` therefore runs your updates at install time;
+`dw install -q` cannot, because `LocalAddinProvider.InstallDll` only calls `LoadIntoMemory` when the
+install is not queued.
+
+> **If the table never appears, do not theorise — read the log.** Update failures are recorded with the
+> exact generated SQL. See **Debugging on a live solution** below for how to reach it, and check `Updates`
+> for your GUID to tell "never ran" from "already applied".
+
 ### Querying the database
 
-Use `Dynamicweb.Database` (static class) for raw SQL access to both Dynamicweb core tables and your custom tables.
+Use `Dynamicweb.Data.Database` (static class) for raw SQL access to both Dynamicweb core tables and your custom tables. Note the namespace is `Dynamicweb.Data`, not `Dynamicweb`.
 
 ```csharp
-using Dynamicweb;
+using Dynamicweb.Data;
 using System.Data;
 
-// SELECT — returns an IDataReader
-using var reader = Database.ExecuteReader("SELECT MyExtension_ProductId, MyExtension_ProductExternalId FROM MyExtension_Product WHERE MyExtension_ProductSyncedAt IS NULL");
+// SELECT — returns an IDataReader. The method is CreateDataReader, not ExecuteReader.
+using var reader = Database.CreateDataReader("SELECT MyExtension_ProductId, MyExtension_ProductExternalId FROM MyExtension_Product WHERE MyExtension_ProductSyncedAt IS NULL");
 while (reader.Read())
 {
     var id = reader.GetInt32(0);
@@ -388,6 +460,96 @@ Database.ExecuteNonQuery($"UPDATE MyExtension_Product SET MyExtension_ProductSyn
 - For complex read scenarios, prefer mapping results to a typed list immediately after the reader loop rather than passing the open reader around
 
 ---
+
+## Debugging on a live solution
+
+Applies to every extension type, not just updates. The recurring trap is that **a successful deploy tells
+you nothing about whether your code loaded or ran** — `dw install` reports `ok: true` either way. Verify
+against the feature, then read the log.
+
+### Read the log
+
+`GeneralLog` is a **database table**, not a file — it is what the admin's Event Viewer reads. Columns:
+`LogId, LogAction, LogDescription, LogUsername, LogDate, LogFilePath, LogLevel, UserId, UtcOffset,
+Exception, MachineName, Category, Url`. Your own `LogManager.System.GetLogger("Name")` calls land here
+too, which makes a log line the cheapest way to prove an extension executed.
+
+Over the Management API, query it with `LogEventByFilters`. The class is `LogEventByFiltersQuery` but the
+registered name drops the `Query` suffix, and it takes three filters — `QueryAction`, `QueryCategory`,
+`Level`:
+
+```bash
+dw query LogEventByFilters --QueryAction Update --QueryCategory Application --Level Error   --host <host> --apiKey "$KEY"
+```
+
+Tested: that narrows 96 rows to the 16 relevant ones. Row fields are camelCase and do **not** match the
+table's column names — `action`, not `logAction`:
+`id, userName, userId, machineName, exceptionType, fileLogPath, action, category, description,
+createDate, level, url`. Stack traces and generated SQL are in `description`.
+
+`EventViewerList` is not a registered query name (400 "Unknown query").
+
+> **Caution:** `dw query` and `dw command` leak `--apiKey` into the request URL (see the dw-cli skill).
+> For anything sensitive, call `/Admin/Api/LogEventByFilters` yourself with an `Authorization: Bearer`
+> header instead.
+
+### Did the assembly even load?
+
+`/Files/System/Log/AddInManager/TypeLoadErrors.log` records every assembly the add-in manager could not
+load, with the reason. A version mismatch looks like this — and note the `(Context)` suffix, because
+add-ins are loaded into their own `AssemblyLoadContext`:
+
+```text
+MyAddIn (Context)  ReflectionTypeLoadException  Could not load file or assembly
+'Dynamicweb.Core, Version=10.29.2.0' ... The system cannot find the file specified.
+```
+
+The host's own path in that same file also tells you which version the solution actually runs, e.g.
+`D:\Dynamicweb.net\Applications\R0-net10\10.29.1\bin` — useful, because the version is not exposed
+anywhere in the API or the frontend.
+
+### Verifying each extension type actually took effect
+
+| Type | How to check | Status |
+|---|---|---|
+| Any assembly | `TypeLoadErrors.log`, and the DLL under `System/AddIns/Installed/<name>.<version>/` | verified |
+| `ScheduledTaskAddIn` | it appears in the solution's scheduled-task type list, with its `[AddInParameter]`s | verified |
+| `UpdateProvider` | a row in `Updates` for each update GUID; failures in `GeneralLog` | verified |
+| `NotificationSubscriber` | log a line from `OnNotify` and trigger the event, then look for it in `GeneralLog` | not verified here |
+| `Provider` (price, shipping, …) | it becomes selectable in the relevant admin screen | not verified here |
+| ViewModel extension | render a template that calls it | not verified here |
+
+The bottom three are the obvious approach rather than a tested recipe — treat them as such.
+
+### Running arbitrary SQL
+
+The Firehose is an **admin-UI tool only**. Its query is named `DatabaseFirehose`, but over the Management
+API every call returns HTTP 500 — including `SELECT 1 AS x` — failing to serialize
+`Model.Exception.TargetSite`.
+
+To query the database over the API anyway, create a scheduled task of type
+`Dynamicweb.Scheduling.ScheduledTaskAddIns.RunSqlScheduledTaskAddIn, Dynamicweb.Core` and run it.
+Triggering a task only returns pass/fail, so surface actual values by forcing them into the error text:
+
+```sql
+DECLARE @m NVARCHAR(1900);
+SELECT @m = ISNULL(STRING_AGG(CAST(name AS NVARCHAR(200)), ','), '(none)') FROM sys.tables WHERE name LIKE 'Pdex%';
+RAISERROR(@m, 16, 1);
+```
+
+The message then appears in that task's log under `System/Log/ScheduledTasks/`. Set the add-in's
+**Log debugging info** parameter to `True` so the executed SQL is logged as well.
+
+> Note `dw files -e` cannot export a file whose name contains a space (the CLI keeps the quotes from the
+> `Content-Disposition` header), and scheduled-task logs are named after the task. Fetch those through
+> the `FileDownload` API endpoint instead.
+
+### Do not build theories on a missing measurement
+
+A previous author of this skill concluded in turn that an `UpdateProvider` "never runs", then that add-in
+load contexts were isolating it, then that it was a platform bug — through several application recycles
+and a source-code investigation. The actual cause was a one-line SQL syntax error, recorded in
+`GeneralLog` from the first attempt. Read the log before forming a theory.
 
 ## Step 4 — Dynamicweb Swift frontend extensions
 
@@ -654,19 +816,34 @@ git merge upstream/main --allow-unrelated-histories
 ```css
 /* Use CSS custom properties (variables) — never hard-code values */
 :root {
-    --dw-font-body: "My Brand Font", sans-serif;
+    --dw-font-family: "My Brand Font", sans-serif;
     --dw-btn-border-radius: 0.25rem;
 }
 
 /* Scope overrides with Swift's semantic attributes for precision */
 [data-dw-colorscheme="light"] [data-dw-itemtype="swift-v2_text"] {
-    background-color: var(--dw-color-accent);
+    background-color: var(--dw-color-button-primary);
 }
 
 /* Target layout sections and columns */
 [data-swift-gridrow] { gap: 2rem; }
 [data-swift-gridcolumn] { padding: 1rem; }
 ```
+
+**Use only variables Swift actually defines.** An unknown custom property is not an error — it silently
+has no effect, so a typo here fails quietly rather than loudly. Verified against Swift v2.4, the families
+are:
+
+| Family | Variables |
+|---|---|
+| Colour | `--dw-color-background`, `--dw-color-foreground`, `--dw-color-button-primary`, `--dw-color-button-secondary`, each also as `-rgb`, and `-contrast` on the button colours |
+| Font | `--dw-font-family`, `--dw-font-size`, `--dw-font-style`, `--dw-font-weight`, `--dw-base-font-size` |
+| Button | `--dw-btn-border-radius`, `--dw-btn-border-width`, `--dw-btn-padding-x`, `--dw-btn-padding-y` |
+| Layout | `--dw-container-width`, `--dw-container-gutter` |
+
+There is no accent colour and no `--dw-font-body`. Confirm against the solution's own
+`Assets/css/swift.css` before inventing a name — it is served at
+`/Files/Templates/Designs/Swift-v2/Assets/css/swift.css`.
 
 **Available CSS variable groups:**
 
@@ -688,8 +865,8 @@ git merge upstream/main --allow-unrelated-histories
 Override a Swift Razor template by placing a file at the **same relative path** in your customization project. Swift resolves templates with your version taking priority.
 
 ```
-/Files/Templates/Designs/Swift/   ← Swift source (do not edit)
-/Files/Templates/Designs/MyCustom/ ← your overrides (same relative paths)
+/Files/Templates/Designs/Swift-v2/   ← Swift source (do not edit)
+/Files/Templates/Designs/MyCustom/  ← your overrides (same relative paths)
 ```
 
 **Impact levels:**
@@ -1403,7 +1580,7 @@ When generating code, always:
 - Swift CSS design: https://doc.dynamicweb.dev/swift/customization/design-css.html
 - Swift developer tools & git workflow: https://doc.dynamicweb.dev/swift/customization/developer-tools.html
 - Dynamicweb extensibility overview: https://doc.dynamicweb.dev/documentation/extending/index.html
-- Dynamicweb providers: https://doc.dynamicweb.dev/documentation/extending/providers.html
+- Dynamicweb providers: https://doc.dynamicweb.dev/documentation/extending/extensibilitypoints/providers.html
 - Dynamicweb API reference: https://doc.dynamicweb.dev/api/
 - Repositories (manual): https://doc.dynamicweb.dev/manual/dynamicweb10/settings/system/repositories/index.html
 - Indexes (implementing): https://doc.dynamicweb.dev/documentation/implementing/repositories/indexes/index.html

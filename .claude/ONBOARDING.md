@@ -32,7 +32,7 @@ pip install keyring
 Or from the skill directory:
 
 ```bash
-pip install -r .agents/skills/azure-devops/requirements.txt
+pip install -r plugins/azure-devops/skills/azure-devops/requirements.txt
 ```
 
 ---

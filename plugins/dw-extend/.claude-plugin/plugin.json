@@ -1,0 +1,19 @@
+{
+  "name": "dw-extend",
+  "description": "Build best-practice extensions for Dynamicweb 10 and Swift — NotificationSubscribers, Providers, ScheduledTasks, UpdateProviders, Razor overrides, CSS customization — plus debugging on a live solution",
+  "version": "1.0.0",
+  "author": {
+    "name": "Dynamicweb"
+  },
+  "homepage": "https://github.com/dynamicweb/ai-implementor-skills/tree/main/plugins/dw-extend",
+  "repository": "https://github.com/dynamicweb/ai-implementor-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dynamicweb",
+    "swift",
+    "extensions",
+    "notifications",
+    "scheduled-tasks",
+    "razor"
+  ]
+}

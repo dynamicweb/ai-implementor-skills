@@ -1,0 +1,18 @@
+{
+  "name": "dw-admin-ui",
+  "description": "Extend the Dynamicweb 10 administration interface — list/edit/overview screens, areas and area trees, screen injectors, action-menu items — from requirement to verified on a solution",
+  "version": "1.0.0",
+  "author": {
+    "name": "Dynamicweb"
+  },
+  "homepage": "https://github.com/dynamicweb/ai-implementor-skills/tree/main/plugins/dw-admin-ui",
+  "repository": "https://github.com/dynamicweb/ai-implementor-skills",
+  "license": "Apache-2.0",
+  "keywords": [
+    "dynamicweb",
+    "admin",
+    "coreui",
+    "screens",
+    "injectors"
+  ]
+}

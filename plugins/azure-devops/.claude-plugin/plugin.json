@@ -1,0 +1,12 @@
+{
+  "name": "azure-devops",
+  "description": "Azure DevOps REST API access — work items, repos, pull requests, pipelines, wiki, test plans, security alerts, variable groups, environments and branch policies across 13 domains",
+  "version": "1.0.0",
+  "author": {
+    "name": "Dynamicweb"
+  },
+  "homepage": "https://github.com/dynamicweb/ai-implementor-skills/tree/main/plugins/azure-devops",
+  "repository": "https://github.com/dynamicweb/ai-implementor-skills",
+  "license": "Apache-2.0",
+  "keywords": ["azure-devops", "work-items", "pull-requests", "pipelines", "wiki"]
+}
