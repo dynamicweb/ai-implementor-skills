@@ -33,8 +33,8 @@ public sealed class ContentSettingsExtensionNodeProvider : NavigationNodeProvide
         {
             yield return new NavigationNode
             {
-                Name = "Pdex widgets",
-                Id = "Pdex_InjectedSettingsNode",
+                Name = "Acme widgets",
+                Id = "Acme_InjectedSettingsNode",
                 Icon = Icon.Sync,
                 Sort = 200,          // high Sort -> after the built-in children
                 NodeAction = NavigateScreenAction.To<WidgetListScreen>().With(new WidgetsQuery())
@@ -69,13 +69,13 @@ public sealed class ApiKeyListActionInjector : ListScreenInjector<ApiKeyListScre
     {
         new()
         {
-            Name = "PdexActions",       // see the warning below
-            Title = "Pdex",
+            Name = "AcmeActions",       // see the warning below
+            Title = "Acme",
             Nodes =
             [
                 new ActionNode
                 {
-                    Name = "Go to Pdex widgets",
+                    Name = "Go to Acme widgets",
                     Icon = Icon.Truck,
                     Sort = 500,
                     NodeAction = NavigateScreenAction.To<WidgetListScreen>().With(new WidgetsQuery())
@@ -90,7 +90,7 @@ Verified end-to-end: the entry renders in the Actions menu of Dynamicweb's own A
 their "Manage columns", and clicking it navigates to the target screen.
 
 > **Set `ActionGroup.Name` — this one bites.** Verified by A/B on a live solution: with only a `Title`,
-> the injected group rendered **dimmed and clicking it did nothing**. Adding `Name = "PdexActions"` and
+> the injected group rendered **dimmed and clicking it did nothing**. Adding `Name = "AcmeActions"` and
 > redeploying made the very same entry navigate correctly. `Name` is the group's logical name and
 > "affects selection-dependency on lists", so a nameless group is treated as requiring a row selection
 > and stays inert until one exists. There is no error and no log entry — the item simply looks slightly

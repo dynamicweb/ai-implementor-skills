@@ -183,14 +183,14 @@ mismatch appears there as `MyAddIn (Context) ReflectionTypeLoadException Could n
 
 **2. Did your area register?** This one *is* checkable over the API, without an admin login. The
 `NavigationByPath` query resolves an area by the path segment `/{ClassNameWithoutAreaSuffix}` — so
-`PdexArea` is reachable at `/Pdex`:
+`AcmeArea` is reachable at `/Acme`:
 
 ```bash
-curl -s -H "Authorization: Bearer $KEY"   "https://<host>/Admin/Api/NavigationByPath?Path=/Pdex"
+curl -s -H "Authorization: Bearer $KEY"   "https://<host>/Admin/Api/NavigationByPath?Path=/Acme"
 ```
 
 Tested before and after a deploy: beforehand it returns HTTP 500
-`Unable to resolve area from path: /Pdex`; afterwards HTTP 200 with `title` set to your area's `Name`.
+`Unable to resolve area from path: /Acme`; afterwards HTTP 200 with `title` set to your area's `Name`.
 That single call proves `AddInManager` found your `AreaBase` subclass in the deployed assembly, which is
 the part most likely to have failed.
 
