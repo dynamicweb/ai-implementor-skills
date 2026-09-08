@@ -17,8 +17,8 @@
       "category": "development"
     },
     {
-      "name": "dw-admin-ui",
-      "source": "./plugins/dw-admin-ui",
+      "name": "dw-extend-admin-ui",
+      "source": "./plugins/dw-extend-admin-ui",
       "category": "development"
     },
     {

@@ -38,7 +38,7 @@
     "commit-commands@claude-plugins-official": true,
     "dw-setup-cli@dynamicweb": true,
     "dw-extend@dynamicweb": true,
-    "dw-admin-ui@dynamicweb": true,
+    "dw-extend-admin-ui@dynamicweb": true,
     "azure-devops@dynamicweb": true
   }
 }

@@ -27,7 +27,7 @@ Determine which extension type(s) are needed. A request may require more than on
 | Run logic on a schedule or via the admin task runner | ScheduledTask AddIn |
 | Change or add frontend presentation without touching Swift source | Swift CSS or Razor override |
 | Add custom data to a Razor template context | ViewModel extension |
-| Add custom UI, screens, or buttons in the Dynamicweb admin | Administration UI extension — **use the `dw-admin-ui` skill**, not this one |
+| Add custom UI, screens, or buttons in the Dynamicweb admin | Administration UI extension — **use the `dw-extend-admin-ui` skill**, not this one |
 | Create custom database tables or migrate schema | UpdateProvider + Database query |
 | Add search, product listing, or faceted filtering | Repository (index + query + facets) |
 

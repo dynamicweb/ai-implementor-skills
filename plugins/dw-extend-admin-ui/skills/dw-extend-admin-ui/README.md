@@ -19,7 +19,7 @@ which explains the concepts well and stays current. This skill is the operationa
 
 | Skill | Role |
 |---|---|
-| `dw-admin-ui` | admin interface extensions — screens, areas, injectors |
+| `dw-extend-admin-ui` | admin interface extensions — screens, areas, injectors |
 | `dw-extend` | other extension types — NotificationSubscribers, Providers, ScheduledTasks, UpdateProviders, Swift frontend |
 | `dw-setup-cli` | moving the built assembly onto a solution and verifying it landed |
 | `azure-devops` | the surrounding work-item, branch and PR workflow |

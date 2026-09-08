@@ -10,7 +10,7 @@ index that Claude Code reads.
 |---|---|---|
 | `dw-setup-cli` | `dw-setup-cli` | Operating a Dynamicweb 10 solution with the `dw` CLI — installing custom `.dll`/`.nupkg` add-ins, uploading and updating Files-archive content, exporting files, triggering a recycle, and verifying the result. |
 | `dw-extend` | `dw-extend` | Building Dynamicweb and Swift extensions — NotificationSubscribers, Providers, ScheduledTasks, UpdateProviders, database access, Razor overrides, CSS customization, custom ItemTypes — plus debugging on a live solution. |
-| `dw-admin-ui` | `dw-admin-ui` | Extending the Dynamicweb 10 administration interface — list/edit/overview screens, areas and area trees, screen injectors, action-menu items — plus deploy and verification. |
+| `dw-extend-admin-ui` | `dw-extend-admin-ui` | Extending the Dynamicweb 10 administration interface — list/edit/overview screens, areas and area trees, screen injectors, action-menu items — plus deploy and verification. |
 | `azure-devops` | `azure-devops` | Azure DevOps REST API — work items, repos, PRs, pipelines, wiki, test plans, security, variable groups, environments, policies. 13 domains, 99 tools. |
 
 See the [root README](../README.md) for installation.

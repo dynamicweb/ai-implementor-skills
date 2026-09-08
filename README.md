@@ -48,9 +48,9 @@ plugins/
   dw-setup-cli/                          ← Deploying to a solution with the `dw` CLI
     .claude-plugin/plugin.json
     skills/dw-setup-cli/                 ← SKILL.md  README.md
-  dw-admin-ui/                     ← Extending the Dynamicweb admin interface
+  dw-extend-admin-ui/                     ← Extending the Dynamicweb admin interface
     .claude-plugin/plugin.json
-    skills/dw-admin-ui/            ← SKILL.md  README.md
+    skills/dw-extend-admin-ui/            ← SKILL.md  README.md
 .claude/
   ONBOARDING.md                    ← Developer setup guide
   settings.json                    ← permissions, and the plugins enabled in this repo
@@ -83,8 +83,8 @@ claude plugin marketplace add dynamicweb/ai-implementor-skills
 claude plugin install dw-setup-cli@dynamicweb
 ```
 
-**Install one, or several** — `dw-setup-cli`, `dw-extend`, `dw-admin-ui`, `azure-devops`. They do not depend on
-each other; they cross-reference in prose (`dw-admin-ui` points at `dw-setup-cli` for deployment), and an absent
+**Install one, or several** — `dw-setup-cli`, `dw-extend`, `dw-extend-admin-ui`, `azure-devops`. They do not depend on
+each other; they cross-reference in prose (`dw-extend-admin-ui` points at `dw-setup-cli` for deployment), and an absent
 skill just means that pointer goes unused.
 
 `--scope` records where the choice is stored: `user` (default, all your projects), `project` (the repo's
@@ -140,7 +140,7 @@ To stop the prompting, add the commands that skill uses to your own
 | Skill | Worth allowing |
 |---|---|
 | `azure-devops` | `Bash(python *)`, `Bash(cd * && python *)` |
-| `dw-extend`, `dw-admin-ui` | `Bash(dotnet *)` |
+| `dw-extend`, `dw-extend-admin-ui` | `Bash(dotnet *)` |
 | `dw-setup-cli` | `Bash(dw *)`, `Bash(npm *)` |
 | any of them | `Bash(curl *)` for reading the Management API |
 
@@ -166,7 +166,7 @@ To stop the prompting, add the commands that skill uses to your own
 |---|---|---|
 | `azure-devops` | Python 3.10+ and `keyring` | `pip install -r plugins/azure-devops/skills/azure-devops/requirements.txt` |
 | `dw-extend` | .NET SDK 10.0 to build extensions | [dotnet.microsoft.com](https://dotnet.microsoft.com/download) |
-| `dw-admin-ui` | .NET SDK 10.0 | as above |
+| `dw-extend-admin-ui` | .NET SDK 10.0 | as above |
 | `dw-setup-cli` | Node.js ≥ 20.12 and the `dw` CLI | `npm install -g @dynamicweb/cli` |
 
 Only `azure-devops` ships scripts; the other three are knowledge skills with nothing to run.
@@ -199,7 +199,7 @@ Create a PAT at `https://dev.azure.com/{org}/_usersSettings/tokens` with these s
 
 ### 5️⃣ Authenticate against a Dynamicweb solution
 
-*Only needed for `dw-setup-cli` and `dw-admin-ui`.*
+*Only needed for `dw-setup-cli` and `dw-extend-admin-ui`.*
 
 Create an API key in the solution's admin under **Settings → System → Developer → Api Keys**, then store
 it in a file rather than pasting it into a command line:
@@ -328,7 +328,7 @@ Building **upgrade-safe** extensions for Dynamicweb and Dynamicweb Swift:
 Also carries a general **debugging** section: reading the `GeneralLog` table, querying it over the
 Management API, and running arbitrary SQL against a solution.
 
-### `dw-admin-ui` — the administration interface
+### `dw-extend-admin-ui` — the administration interface
 
 Extending the admin ("backend") from your own assembly:
 
