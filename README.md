@@ -45,9 +45,9 @@ plugins/
   dw-extend/                       ← Dynamicweb & Swift extension patterns
     .claude-plugin/plugin.json
     skills/dw-extend/              ← SKILL.md  README.md
-  dw-cli/                          ← Deploying to a solution with the `dw` CLI
+  dw-setup-cli/                          ← Deploying to a solution with the `dw` CLI
     .claude-plugin/plugin.json
-    skills/dw-cli/                 ← SKILL.md  README.md
+    skills/dw-setup-cli/                 ← SKILL.md  README.md
   dw-admin-ui/                     ← Extending the Dynamicweb admin interface
     .claude-plugin/plugin.json
     skills/dw-admin-ui/            ← SKILL.md  README.md
@@ -70,7 +70,7 @@ Register this repo as a marketplace once, then install per skill. In Claude Code
 
 ```
 /plugin marketplace add dynamicweb/ai-implementor-skills
-/plugin install dw-cli@dynamicweb
+/plugin install dw-setup-cli@dynamicweb
 ```
 
 Or from a terminal:
@@ -80,11 +80,11 @@ claude plugin marketplace add dynamicweb/ai-implementor-skills
 ```
 
 ```bash
-claude plugin install dw-cli@dynamicweb
+claude plugin install dw-setup-cli@dynamicweb
 ```
 
-**Install one, or several** — `dw-cli`, `dw-extend`, `dw-admin-ui`, `azure-devops`. They do not depend on
-each other; they cross-reference in prose (`dw-admin-ui` points at `dw-cli` for deployment), and an absent
+**Install one, or several** — `dw-setup-cli`, `dw-extend`, `dw-admin-ui`, `azure-devops`. They do not depend on
+each other; they cross-reference in prose (`dw-admin-ui` points at `dw-setup-cli` for deployment), and an absent
 skill just means that pointer goes unused.
 
 `--scope` records where the choice is stored: `user` (default, all your projects), `project` (the repo's
@@ -103,7 +103,7 @@ expects — everyone still runs `marketplace add` and `install` once.
 **Or point Claude Code at the repo in plain language.** It is public, so you can say:
 
 ```
-Install the dw-cli skill from https://github.com/dynamicweb/ai-implementor-skills
+Install the dw-setup-cli skill from https://github.com/dynamicweb/ai-implementor-skills
 ```
 
 Either way, the authentication steps below are yours to run, since they involve credentials.
@@ -111,10 +111,10 @@ Either way, the authentication steps below are yours to run, since they involve 
 **Verify the skill was actually found.** Installation reporting success is not the same as discovery:
 
 ```bash
-claude plugin details dw-cli
+claude plugin details dw-setup-cli
 ```
 
-Look for `Skills (1)  dw-cli` in the component inventory. The same command reports the token cost — each
+Look for `Skills (1)  dw-setup-cli` in the component inventory. The same command reports the token cost — each
 of these adds roughly 60–120 tokens to every session, and 4–20k when it fires.
 
 <details>
@@ -124,7 +124,7 @@ A skill directory is self-contained, so copying it works too. You lose versionin
 `claude plugin update`, but nothing else:
 
 ```bash
-cp -r plugins/dw-cli/skills/dw-cli /path/to/your-repo/.claude/skills/
+cp -r plugins/dw-setup-cli/skills/dw-setup-cli /path/to/your-repo/.claude/skills/
 ```
 
 Claude Code discovers any `.claude/skills/<name>/SKILL.md` in a repo automatically — no registration, no
@@ -141,7 +141,7 @@ To stop the prompting, add the commands that skill uses to your own
 |---|---|
 | `azure-devops` | `Bash(python *)`, `Bash(cd * && python *)` |
 | `dw-extend`, `dw-admin-ui` | `Bash(dotnet *)` |
-| `dw-cli` | `Bash(dw *)`, `Bash(npm *)` |
+| `dw-setup-cli` | `Bash(dw *)`, `Bash(npm *)` |
 | any of them | `Bash(curl *)` for reading the Management API |
 
 ```json
@@ -157,7 +157,7 @@ To stop the prompting, add the commands that skill uses to your own
 > four in this repo — which will turn those on for whoever opens it. Merge the `permissions.allow` entries
 > you want into your own file instead.
 >
-> Note this repo's own `settings.json` predates the `dw-cli` skill and does **not** allow `Bash(dw *)`,
+> Note this repo's own `settings.json` predates the `dw-setup-cli` skill and does **not** allow `Bash(dw *)`,
 > so `dw` commands still prompt here.
 
 ### 3️⃣ Install what each skill needs
@@ -167,7 +167,7 @@ To stop the prompting, add the commands that skill uses to your own
 | `azure-devops` | Python 3.10+ and `keyring` | `pip install -r plugins/azure-devops/skills/azure-devops/requirements.txt` |
 | `dw-extend` | .NET SDK 10.0 to build extensions | [dotnet.microsoft.com](https://dotnet.microsoft.com/download) |
 | `dw-admin-ui` | .NET SDK 10.0 | as above |
-| `dw-cli` | Node.js ≥ 20.12 and the `dw` CLI | `npm install -g @dynamicweb/cli` |
+| `dw-setup-cli` | Node.js ≥ 20.12 and the `dw` CLI | `npm install -g @dynamicweb/cli` |
 
 Only `azure-devops` ships scripts; the other three are knowledge skills with nothing to run.
 
@@ -199,7 +199,7 @@ Create a PAT at `https://dev.azure.com/{org}/_usersSettings/tokens` with these s
 
 ### 5️⃣ Authenticate against a Dynamicweb solution
 
-*Only needed for `dw-cli` and `dw-admin-ui`.*
+*Only needed for `dw-setup-cli` and `dw-admin-ui`.*
 
 Create an API key in the solution's admin under **Settings → System → Developer → Api Keys**, then store
 it in a file rather than pasting it into a command line:
@@ -214,7 +214,7 @@ Every `dw` command then reads it at call time:
 dw files ./templates Templates -i -o --host <solution>.dynamicweb.cloud --apiKey "$(cat ~/.dw-apikey)"
 ```
 
-`dw login` is not used — it is unavailable on `*.dynamicweb.cloud` solutions. See the `dw-cli` skill.
+`dw login` is not used — it is unavailable on `*.dynamicweb.cloud` solutions. See the `dw-setup-cli` skill.
 
 > ⚠️ **Do not pass `--apiKey` to `dw query` or `dw command`.** Those two leak the key into the request
 > URL and print it in their error output. Use `dw files` / `dw install` normally, and call the Management
@@ -340,7 +340,7 @@ Extending the admin ("backend") from your own assembly:
 Every C# pattern in it is compile-verified, and the whole chain has been deployed and confirmed rendering
 on a live solution.
 
-### `dw-cli` — getting it onto a solution
+### `dw-setup-cli` — getting it onto a solution
 
 Operating a solution with the `dw` CLI: installing `.dll`/`.nupkg` add-ins, uploading and updating
 templates and other Files content, exporting the archive, and triggering a recycle. Includes the

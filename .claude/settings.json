@@ -36,7 +36,7 @@
     "github@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true,
     "commit-commands@claude-plugins-official": true,
-    "dw-cli@dynamicweb": true,
+    "dw-setup-cli@dynamicweb": true,
     "dw-extend@dynamicweb": true,
     "dw-admin-ui@dynamicweb": true,
     "azure-devops@dynamicweb": true

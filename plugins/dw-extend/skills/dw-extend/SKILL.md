@@ -489,7 +489,7 @@ createDate, level, url`. Stack traces and generated SQL are in `description`.
 
 `EventViewerList` is not a registered query name (400 "Unknown query").
 
-> **Caution:** `dw query` and `dw command` leak `--apiKey` into the request URL (see the dw-cli skill).
+> **Caution:** `dw query` and `dw command` leak `--apiKey` into the request URL (see the dw-setup-cli skill).
 > For anything sensitive, call `/Admin/Api/LogEventByFilters` yourself with an `Authorization: Bearer`
 > header instead.
 

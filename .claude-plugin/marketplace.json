@@ -7,8 +7,8 @@
   },
   "plugins": [
     {
-      "name": "dw-cli",
-      "source": "./plugins/dw-cli",
+      "name": "dw-setup-cli",
+      "source": "./plugins/dw-setup-cli",
       "category": "deployment"
     },
     {

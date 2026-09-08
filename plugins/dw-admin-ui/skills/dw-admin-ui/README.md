@@ -21,7 +21,7 @@ which explains the concepts well and stays current. This skill is the operationa
 |---|---|
 | `dw-admin-ui` | admin interface extensions — screens, areas, injectors |
 | `dw-extend` | other extension types — NotificationSubscribers, Providers, ScheduledTasks, UpdateProviders, Swift frontend |
-| `dw-cli` | moving the built assembly onto a solution and verifying it landed |
+| `dw-setup-cli` | moving the built assembly onto a solution and verifying it landed |
 | `azure-devops` | the surrounding work-item, branch and PR workflow |
 
 ## Setup
@@ -33,7 +33,7 @@ rest:
 <PackageReference Include="Dynamicweb.Application.UI" Version="10.*" />
 ```
 
-Requires .NET SDK 10.0. Deploying needs the `dw` CLI and an API key — see the `dw-cli` skill.
+Requires .NET SDK 10.0. Deploying needs the `dw` CLI and an API key — see the `dw-setup-cli` skill.
 
 ## Usage
 

@@ -61,7 +61,7 @@ One package reference is enough. `Dynamicweb.Application.UI` transitively brings
 > **Never build against a newer version than the solution runs.** `Version="10.*"` resolves to the latest
 > *stable* and excludes prereleases, which is why it is the right default — do not "helpfully" change it
 > to `10.*-*`. An assembly built against newer Dynamicweb assemblies than the host has **fails to load
-> silently**: `dw install` still reports success, and nothing appears in the admin. See the dw-cli skill.
+> silently**: `dw install` still reports success, and nothing appears in the admin. See the dw-setup-cli skill.
 
 ## Step 3 — The four parts of a screen
 
@@ -560,7 +560,7 @@ dw install ./bin/Release/net10.0/Acme.AdminUi.dll --output json \
 ```
 
 Omit `-q`: a queued install defers activation to the next recycle, so your screen will not appear until
-then. See the dw-cli skill for the full command reference.
+then. See the dw-setup-cli skill for the full command reference.
 
 ## Step 7 — Verify (mandatory)
 

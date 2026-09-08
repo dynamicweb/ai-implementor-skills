@@ -1,11 +1,11 @@
 {
-  "name": "dw-cli",
+  "name": "dw-setup-cli",
   "description": "Operate a Dynamicweb 10 solution with the dw CLI — install .dll/.nupkg add-ins, upload and update Files-archive content, export files, trigger a recycle, and verify the result",
   "version": "1.0.0",
   "author": {
     "name": "Dynamicweb"
   },
-  "homepage": "https://github.com/dynamicweb/ai-implementor-skills/tree/main/plugins/dw-cli",
+  "homepage": "https://github.com/dynamicweb/ai-implementor-skills/tree/main/plugins/dw-setup-cli",
   "repository": "https://github.com/dynamicweb/ai-implementor-skills",
   "license": "Apache-2.0",
   "keywords": [
